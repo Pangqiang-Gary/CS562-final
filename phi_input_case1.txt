@@ -1,0 +1,9 @@
+# Case 1: Sum and Average per customer (single grouping variable)
+
+S: cust, 1_sum_quant, 1_avg_quant
+n: 1
+V: cust
+F: 1_sum_quant, 1_avg_quant
+
+sigma:
+  1: (cust == g_cust) and (quant is not None)
