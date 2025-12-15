@@ -49,8 +49,10 @@ def run_query():
         if key not in mf_struct:
             entry = {}
             entry['cust'] = row['cust']
-            entry['1_count_*'] = 0
-            entry['1_max_quant'] = None
+            entry['1_sum_quant'] = 0
+            entry['1_avg_quant__sum'] = 0
+            entry['1_avg_quant__count'] = 0
+            entry['1_avg_quant'] = 0
             mf_struct[key] = entry
 
     # SCAN 1: compute aggregates for grouping variable 1
@@ -61,14 +63,15 @@ def run_query():
             env['g_cust'] = entry.get('cust')
             if not _safe_eval_predicate('(cust == g_cust) and (quant is not None)', env):
                 continue
-            entry['1_count_*'] += 1
+            entry['1_sum_quant'] += (row['quant'] if row['quant'] is not None else 0)
             val = row['quant']
             if val is not None:
-                if entry['1_max_quant'] is None or val > entry['1_max_quant']:
-                    entry['1_max_quant'] = val
+                entry['1_avg_quant__sum'] += val
+                entry['1_avg_quant__count'] += 1
+                entry['1_avg_quant'] = entry['1_avg_quant__sum'] / entry['1_avg_quant__count']
 
     # Output
-    out_cols = ['cust', '1_count_*', '1_max_quant']
+    out_cols = ['cust', '1_sum_quant', '1_avg_quant']
     print("\t".join(out_cols))
     for _key, entry in mf_struct.items():
         row_out = [str(entry.get(c, "")) for c in out_cols]

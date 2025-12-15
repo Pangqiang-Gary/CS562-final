@@ -30,15 +30,16 @@ def _emit_header() -> str:
 
 
         def run_query():
-            load_dotenv()
-            user = os.getenv("USER")
-            password = os.getenv("PASSWORD")
-            dbname = os.getenv("DBNAME")
-            host = os.getenv("HOST", "localhost")
-            port = os.getenv("PORT", "5432")
+            try:
+                load_dotenv()
+                user = os.getenv("USER")
+                password = os.getenv("PASSWORD")
+                dbname = os.getenv("DBNAME")
+                host = os.getenv("HOST", "localhost")
+                port = os.getenv("PORT", "5432")
 
-            if not user or not password or not dbname:
-                raise RuntimeError("Missing USER/PASSWORD/DBNAME in .env")
+            except:
+                raise RuntimeError("Incorrect USER/PASSWORD/DBNAME in .env")
 
             conn = psycopg2.connect(
                 dbname=dbname,
