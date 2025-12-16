@@ -1,7 +1,7 @@
 # Colab-ready MF-Structure Final Project
 
 ## Files
-- `phi_input.txt`: query specification (S, n, V, F, sigma)
+- `phi_input.txt`: query specification (S, n, V, F, sigma, G)
 - `codegen.py`: generates `qpe.py` from `phi_input.txt`
 - `qpe.py`: generated executable (connects to PostgreSQL, scans `sales`)
 

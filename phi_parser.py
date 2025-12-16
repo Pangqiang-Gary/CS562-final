@@ -20,6 +20,7 @@ class PhiSpec:
     grouping_attrs: List[str]         # V:
     aggs: List[AggSpec]               # F:
     predicates: Dict[str, str]        # sigma: gv -> predicate string (Python expression over env dict)
+    having: List[List[str]]           # G: list of OR blocks, each a list of AND predicates
 
 
 _FUNC_CANON = {"sum": "sum", "count": "count", "avg": "avg", "min": "min", "max": "max"}
@@ -64,6 +65,7 @@ def parse_phi_file(path: str) -> PhiSpec:
     n: Optional[str] = None
     V: Optional[str] = None
     F: Optional[str] = None
+    G: Optional[str] = None
     sigma_lines: List[str] = []
 
     mode: Optional[str] = None
@@ -90,6 +92,10 @@ def parse_phi_file(path: str) -> PhiSpec:
             rest = ln.split(":", 1)[1].strip()
             if rest:
                 sigma_lines.append(rest)
+            continue
+        if lower.startswith("g:"):
+            mode = "G"
+            G = ln.split(":", 1)[1].strip()
             continue
 
         # Continuation lines
@@ -138,12 +144,46 @@ def parse_phi_file(path: str) -> PhiSpec:
             else:
                 predicates["1"] = f"({predicates['1']}) and ({ln.strip()})"
 
+    if G:
+        # Normalize spacing
+        G = re.sub(r'\s+', ' ', G.strip())
+
+        # Split OR (case-insensitive)
+        or_blocks = re.split(r'\s+OR\s+', G, flags=re.IGNORECASE)
+
+        having: List[List[str]] = []
+
+        for block in or_blocks:
+            and_parts = re.split(r'\s+AND\s+', block, flags=re.IGNORECASE)
+            rewrite = []
+
+            for cond in and_parts:
+                cond = cond.strip()
+                # rewrite aggregates
+                cond = re.sub(
+                    r"\b(\d+)\s*_(sum|count|avg|min|max)\s*_\s*([A-Za-z_][A-Za-z0-9_]*|\*)\b",
+                    lambda m: f"entry['{m.group(0).strip()}']",
+                    cond,
+                )
+
+                # 2) rewrite plain attributes (month, year, prod)
+                cond = re.sub(
+                    r"(?<!')\b[A-Za-z_][A-Za-z0-9_]*\b(?!')",
+                    lambda m: m.group(0)
+                    if m.group(0) in {"not", "True", "False", "entry"}
+                    else f"entry['{m.group(0).strip()}']",
+                    cond,
+                )
+                rewrite.append(cond)
+            having.append(rewrite)
+
     return PhiSpec(
         select_attrs=select_attrs,
         num_gv=num_gv,
         grouping_attrs=grouping_attrs,
         aggs=aggs,
         predicates=predicates,
+        having=having
     )
 
 
@@ -159,3 +199,4 @@ def _split_list(s: str) -> List[str]:
 
 def _first_token(s: str) -> str:
     return s.strip().split()[0]
+

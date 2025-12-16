@@ -6,7 +6,6 @@ from typing import Dict, List
 
 from phi_parser import parse_phi_file, PhiSpec, AggSpec
 
-
 def _emit_header() -> str:
     return textwrap.dedent(
         """        from __future__ import annotations
@@ -30,25 +29,26 @@ def _emit_header() -> str:
 
 
         def run_query():
-            load_dotenv()
-            user = os.getenv("USER")
-            password = os.getenv("PASSWORD")
-            dbname = os.getenv("DBNAME")
-            host = os.getenv("HOST", "localhost")
-            port = os.getenv("PORT", "5432")
+            try:
+                load_dotenv()
+                user = os.getenv("USER")
+                password = os.getenv("PASSWORD")
+                dbname = os.getenv("DBNAME")
+                host = os.getenv("HOST", "localhost")
+                port = os.getenv("PORT", "5432")
 
-            if not user or not password or not dbname:
-                raise RuntimeError("Missing USER/PASSWORD/DBNAME in .env")
+                conn = psycopg2.connect(
+                    dbname=dbname,
+                    user=user,
+                    password=password,
+                    host=host,
+                    port=port,
+                    cursor_factory=psycopg2.extras.DictCursor
+                )
+                cur = conn.cursor()
 
-            conn = psycopg2.connect(
-                dbname=dbname,
-                user=user,
-                password=password,
-                host=host,
-                port=port,
-                cursor_factory=psycopg2.extras.DictCursor
-            )
-            cur = conn.cursor()
+            except:
+                raise RuntimeError("Incorrect USER/PASSWORD/DBNAME in .env")
 
             # mf_struct maps grouping key tuple -> entry dict
             mf_struct = {}
@@ -126,7 +126,7 @@ def _emit_footer(spec: PhiSpec) -> str:
         f"""            # Output
             out_cols = {cols_py}
             print("\\t".join(out_cols))
-            for _key, entry in mf_struct.items():
+            for _key, entry in filtered_mf_struct.items():
                 row_out = [str(entry.get(c, "")) for c in out_cols]
                 print("\\t".join(row_out))
 
@@ -138,7 +138,6 @@ def _emit_footer(spec: PhiSpec) -> str:
             run_query()
         """
     )
-
 
 def _emit_scan0(spec: PhiSpec) -> str:
     V = spec.grouping_attrs
@@ -189,9 +188,30 @@ def _emit_scans(spec: PhiSpec) -> str:
 
     return "\n".join(blocks)
 
+def _emit_filter(spec: PhiSpec) -> str:
+    having = spec.having
+    lines = []
+
+    lines.append("    filtered_mf_struct = {}")
+    lines.append("    for _key, entry in mf_struct.items():")
+
+    # build condition
+    or_clauses = []
+    for and_group in having:
+        if len(and_group) == 1:
+            or_clauses.append(f"{and_group[0]}")
+        else:
+            or_clauses.append("" + " and ".join(and_group) + "")
+
+    condition = " or ".join(or_clauses)
+
+    lines.append(f"        if ({condition}):")
+    lines.append("             filtered_mf_struct[_key] = entry")
+
+    return "\n".join(lines) + "\n"
 
 def generate_qpe(spec: PhiSpec) -> str:
-    return "\n".join([_emit_header(), _emit_scan0(spec), _emit_scans(spec), _emit_footer(spec)])
+    return "\n".join([_emit_header(), _emit_scan0(spec), _emit_scans(spec), _emit_filter(spec), _emit_footer(spec)])
 
 
 def main() -> None:
