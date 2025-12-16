@@ -3,12 +3,8 @@ from __future__ import annotations
 import sys
 import textwrap
 from typing import Dict, List
-import re
 
 from phi_parser import parse_phi_file, PhiSpec, AggSpec
-
-# Accept tokens like: 1_sum_quant, 2_avg_price, 3_count_*
-_AGG_RE = re.compile(r"^\s*(\d+)\s*_(sum|count|avg|min|max)\s*_\s*([A-Za-z_][A-Za-z0-9_]*|\*)\s*$", re.I)
 
 def _emit_header() -> str:
     return textwrap.dedent(

@@ -168,7 +168,7 @@ def parse_phi_file(path: str) -> PhiSpec:
 
                 # 2) rewrite plain attributes (month, year, prod)
                 cond = re.sub(
-                    r"\b[A-Za-z_][A-Za-z0-9_]*\b",
+                    r"(?<!')\b[A-Za-z_][A-Za-z0-9_]*\b(?!')",
                     lambda m: m.group(0)
                     if m.group(0) in {"not", "True", "False", "entry"}
                     else f"entry['{m.group(0).strip()}']",
