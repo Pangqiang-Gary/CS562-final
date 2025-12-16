@@ -3,9 +3,12 @@ from __future__ import annotations
 import sys
 import textwrap
 from typing import Dict, List
+import re
 
 from phi_parser import parse_phi_file, PhiSpec, AggSpec
 
+# Accept tokens like: 1_sum_quant, 2_avg_price, 3_count_*
+_AGG_RE = re.compile(r"^\s*(\d+)\s*_(sum|count|avg|min|max)\s*_\s*([A-Za-z_][A-Za-z0-9_]*|\*)\s*$", re.I)
 
 def _emit_header() -> str:
     return textwrap.dedent(
@@ -38,18 +41,18 @@ def _emit_header() -> str:
                 host = os.getenv("HOST", "localhost")
                 port = os.getenv("PORT", "5432")
 
+                conn = psycopg2.connect(
+                    dbname=dbname,
+                    user=user,
+                    password=password,
+                    host=host,
+                    port=port,
+                    cursor_factory=psycopg2.extras.DictCursor
+                )
+                cur = conn.cursor()
+
             except:
                 raise RuntimeError("Incorrect USER/PASSWORD/DBNAME in .env")
-
-            conn = psycopg2.connect(
-                dbname=dbname,
-                user=user,
-                password=password,
-                host=host,
-                port=port,
-                cursor_factory=psycopg2.extras.DictCursor
-            )
-            cur = conn.cursor()
 
             # mf_struct maps grouping key tuple -> entry dict
             mf_struct = {}
@@ -127,7 +130,7 @@ def _emit_footer(spec: PhiSpec) -> str:
         f"""            # Output
             out_cols = {cols_py}
             print("\\t".join(out_cols))
-            for _key, entry in mf_struct.items():
+            for _key, entry in filtered_mf_struct.items():
                 row_out = [str(entry.get(c, "")) for c in out_cols]
                 print("\\t".join(row_out))
 
@@ -139,7 +142,6 @@ def _emit_footer(spec: PhiSpec) -> str:
             run_query()
         """
     )
-
 
 def _emit_scan0(spec: PhiSpec) -> str:
     V = spec.grouping_attrs
@@ -190,9 +192,30 @@ def _emit_scans(spec: PhiSpec) -> str:
 
     return "\n".join(blocks)
 
+def _emit_filter(spec: PhiSpec) -> str:
+    having = spec.having
+    lines = []
+
+    lines.append("    filtered_mf_struct = {}")
+    lines.append("    for _key, entry in mf_struct.items():")
+
+    # build condition
+    or_clauses = []
+    for and_group in having:
+        if len(and_group) == 1:
+            or_clauses.append(f"{and_group[0]}")
+        else:
+            or_clauses.append("" + " and ".join(and_group) + "")
+
+    condition = " or ".join(or_clauses)
+
+    lines.append(f"        if ({condition}):")
+    lines.append("             filtered_mf_struct[_key] = entry")
+
+    return "\n".join(lines) + "\n"
 
 def generate_qpe(spec: PhiSpec) -> str:
-    return "\n".join([_emit_header(), _emit_scan0(spec), _emit_scans(spec), _emit_footer(spec)])
+    return "\n".join([_emit_header(), _emit_scan0(spec), _emit_scans(spec), _emit_filter(spec), _emit_footer(spec)])
 
 
 def main() -> None:

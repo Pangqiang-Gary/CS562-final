@@ -1,9 +1,8 @@
-# Case 1: Sum and Average per customer (single grouping variable)
-
-S: cust, 1_sum_quant, 1_avg_quant
-n: 1
-V: cust
-F: 1_sum_quant, 1_avg_quant
-
+S: prod, month, 1_sum_quant, 2_sum_quant
+n: 2
+V: prod,month
+F: 1_sum_quant, 2_sum_quant
 sigma:
-  1: (cust == g_cust) and (quant is not None)
+  1: prod == g_prod and month == g_month
+  2: prod == g_prod
+G: 1_sum_quant > 0.9*2_sum_quant/10 and (1_sum_quant > 40000 or 2_sum_quant<500000) AND month == 11
