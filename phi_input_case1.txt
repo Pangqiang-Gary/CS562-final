@@ -1,3 +1,12 @@
+"""
+select prod, month, x_sum_quant, y_sum_quant
+from sales
+where month = 11
+group by prod,month; x,y
+such that x_prod = prod and x_month = month
+  and y_prod = prod
+having x_sum_quant > 0.9*y_sum_quant/10 and (x_sum_quant > 40000 or y_sum_quant<500000)
+"""
 S: prod, month, 1_sum_quant, 2_sum_quant
 n: 2
 V: prod,month
