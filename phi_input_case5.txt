@@ -1,0 +1,20 @@
+"""
+select prod, month, a_sum_quant, b_sum_quant, c_avg_quant
+from sales
+group by prod,month; a,b,c
+such that a_prod = prod and a_month = month-1
+  and b_prod = prod
+  and c_prod = prod and c_month = month+1
+having (a_sum_quant > b_sum_quant)
+   or (c_avg_quant >= 10 and b_sum_quant < 100000)
+"""
+S: prod, month, 1_sum_quant, 2_sum_quant, 3_avg_quant
+n: 3
+V: prod, month
+F: 1_sum_quant, 2_sum_quant, 3_avg_quant
+sigma:
+  1: prod == g_prod and month == g_month-1
+  2: prod == g_prod
+  3: prod == g_prod and month == g_month+1
+G: (1_sum_quant > 2_sum_quant)
+   or (3_avg_quant >= 200 and 2_sum_quant < 500000)

@@ -1,0 +1,12 @@
+"""
+select prod, month, sum_quant
+from sales
+group by prod,month
+
+"""
+S: prod, month
+n: 0
+V: prod, month
+F: 
+sigma:
+G:
