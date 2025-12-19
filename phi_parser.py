@@ -118,6 +118,7 @@ def parse_phi_file(path: str) -> PhiSpec:
     grouping_attrs = _split_list(V)
 
     aggs: List[AggSpec] = []
+    having: List[List[str]] = []
     if F:
         for item in _split_list(F):
             m = _AGG_RE.match(item)
@@ -150,8 +151,6 @@ def parse_phi_file(path: str) -> PhiSpec:
 
         # Split OR (case-insensitive)
         or_blocks = re.split(r'\s+OR\s+', G, flags=re.IGNORECASE)
-
-        having: List[List[str]] = []
 
         for block in or_blocks:
             and_parts = re.split(r'\s+AND\s+', block, flags=re.IGNORECASE)

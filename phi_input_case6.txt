@@ -1,11 +1,45 @@
 """
-select prod, month, a_sum_quant, b_sum_quant, c_avg_quant
-from sales
-group by prod,month; a,b,c
-such that a_prod = prod and a_month = month-1
-  and b_prod = prod
-  and c_prod = prod and c_month = month+1
-
+WITH a AS (
+    SELECT
+        prod,
+        month,
+        SUM(quant) AS a_sum_quant
+    FROM sales
+    GROUP BY prod, month
+),
+b AS (
+    SELECT
+        prod,
+        SUM(quant) AS b_sum_quant
+    FROM sales
+    GROUP BY prod
+),
+c AS (
+    SELECT
+        prod,
+        month,
+        AVG(quant) AS c_avg_quant
+    FROM sales
+    GROUP BY prod, month
+)
+SELECT
+    s.prod,
+    s.month,
+    a.a_sum_quant,
+    b.b_sum_quant,
+    c.c_avg_quant
+FROM (
+    SELECT DISTINCT prod, month
+    FROM sales
+) s
+LEFT JOIN a
+  ON a.prod = s.prod
+ AND a.month = s.month - 1
+LEFT JOIN b
+  ON b.prod = s.prod
+LEFT JOIN c
+  ON c.prod = s.prod
+ AND c.month = s.month + 1;
 """
 S: prod, month, 1_sum_quant, 2_sum_quant, 3_avg_quant
 n: 3

@@ -204,6 +204,8 @@ def _emit_filter(spec: PhiSpec) -> str:
             or_clauses.append("" + " and ".join(and_group) + "")
 
     condition = " or ".join(or_clauses)
+    if len(condition.strip()) == 0:
+        condition = True
 
     lines.append(f"        if ({condition}):")
     lines.append("             filtered_mf_struct[_key] = entry")

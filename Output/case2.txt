@@ -1,0 +1,10 @@
+cust    1_count_*       1_max_quant
+Dan     1139    1000
+Claire  1084    1000
+Chae    1097    999
+Mia     1110    999
+Sam     1114    1000
+Wally   1110    1000
+Helen   1106    1000
+Emily   1123    999
+Boo     1117    1000

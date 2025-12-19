@@ -19,25 +19,26 @@ def _safe_eval_predicate(expr: str, env: dict) -> bool:
 
 
 def run_query():
-    load_dotenv()
-    user = os.getenv("USER")
-    password = os.getenv("PASSWORD")
-    dbname = os.getenv("DBNAME")
-    host = os.getenv("HOST", "localhost")
-    port = os.getenv("PORT", "5432")
+    try:
+        load_dotenv()
+        user = os.getenv("USER")
+        password = os.getenv("PASSWORD")
+        dbname = os.getenv("DBNAME")
+        host = os.getenv("HOST", "localhost")
+        port = os.getenv("PORT", "5432")
 
-    if not user or not password or not dbname:
-        raise RuntimeError("Missing USER/PASSWORD/DBNAME in .env")
+        conn = psycopg2.connect(
+            dbname=dbname,
+            user=user,
+            password=password,
+            host=host,
+            port=port,
+            cursor_factory=psycopg2.extras.DictCursor
+        )
+        cur = conn.cursor()
 
-    conn = psycopg2.connect(
-        dbname=dbname,
-        user=user,
-        password=password,
-        host=host,
-        port=port,
-        cursor_factory=psycopg2.extras.DictCursor
-    )
-    cur = conn.cursor()
+    except:
+        raise RuntimeError("Incorrect USER/PASSWORD/DBNAME in .env")
 
     # mf_struct maps grouping key tuple -> entry dict
     mf_struct = {}
@@ -45,14 +46,16 @@ def run_query():
     # SCAN 0: initialize mf_struct entries for distinct grouping keys
     cur.execute('SELECT * FROM sales')
     for row in cur:
-        key = (row['cust'],)
+        key = (row['prod'], row['month'])
         if key not in mf_struct:
             entry = {}
-            entry['cust'] = row['cust']
+            entry['prod'] = row['prod']
+            entry['month'] = row['month']
             entry['1_sum_quant'] = 0
-            entry['1_avg_quant__sum'] = 0
-            entry['1_avg_quant__count'] = 0
-            entry['1_avg_quant'] = 0
+            entry['2_sum_quant'] = 0
+            entry['3_avg_quant__sum'] = 0
+            entry['3_avg_quant__count'] = 0
+            entry['3_avg_quant'] = 0
             mf_struct[key] = entry
 
     # SCAN 1: compute aggregates for grouping variable 1
@@ -60,20 +63,47 @@ def run_query():
     for row in cur:
         for _key, entry in mf_struct.items():
             env = dict(row)
-            env['g_cust'] = entry.get('cust')
-            if not _safe_eval_predicate('(cust == g_cust) and (quant is not None)', env):
+            env['g_prod'] = entry.get('prod')
+            env['g_month'] = entry.get('month')
+            if not _safe_eval_predicate('prod == g_prod and month == g_month-1', env):
                 continue
             entry['1_sum_quant'] += (row['quant'] if row['quant'] is not None else 0)
+
+    # SCAN 2: compute aggregates for grouping variable 2
+    cur.execute('SELECT * FROM sales')
+    for row in cur:
+        for _key, entry in mf_struct.items():
+            env = dict(row)
+            env['g_prod'] = entry.get('prod')
+            env['g_month'] = entry.get('month')
+            if not _safe_eval_predicate('prod == g_prod', env):
+                continue
+            entry['2_sum_quant'] += (row['quant'] if row['quant'] is not None else 0)
+
+    # SCAN 3: compute aggregates for grouping variable 3
+    cur.execute('SELECT * FROM sales')
+    for row in cur:
+        for _key, entry in mf_struct.items():
+            env = dict(row)
+            env['g_prod'] = entry.get('prod')
+            env['g_month'] = entry.get('month')
+            if not _safe_eval_predicate('prod == g_prod and month == g_month+1', env):
+                continue
             val = row['quant']
             if val is not None:
-                entry['1_avg_quant__sum'] += val
-                entry['1_avg_quant__count'] += 1
-                entry['1_avg_quant'] = entry['1_avg_quant__sum'] / entry['1_avg_quant__count']
+                entry['3_avg_quant__sum'] += val
+                entry['3_avg_quant__count'] += 1
+                entry['3_avg_quant'] = entry['3_avg_quant__sum'] / entry['3_avg_quant__count']
+
+    filtered_mf_struct = {}
+    for _key, entry in mf_struct.items():
+        if ((entry['1_sum_quant'] > entry['2_sum_quant']/10) or (entry['3_avg_quant'] >= 500 and entry['2_sum_quant'] < 470000)):
+             filtered_mf_struct[_key] = entry
 
     # Output
-    out_cols = ['cust', '1_sum_quant', '1_avg_quant']
+    out_cols = ['prod', 'month', '1_sum_quant', '2_sum_quant', '3_avg_quant']
     print("\t".join(out_cols))
-    for _key, entry in mf_struct.items():
+    for _key, entry in filtered_mf_struct.items():
         row_out = [str(entry.get(c, "")) for c in out_cols]
         print("\t".join(row_out))
 

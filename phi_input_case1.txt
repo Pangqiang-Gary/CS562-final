@@ -1,11 +1,30 @@
 """
-select prod, month, x_sum_quant, y_sum_quant
-from sales
-where month = 11
-group by prod,month; x,y
-such that x_prod = prod and x_month = month
-  and y_prod = prod
-having x_sum_quant > 0.9*y_sum_quant/10 and (x_sum_quant > 40000 or y_sum_quant<500000)
+WITH x AS (
+    SELECT
+        prod,
+        month,
+        SUM(quant) AS x_sum_quant
+    FROM sales
+    WHERE month = 11
+    GROUP BY prod, month
+),
+y AS (
+    SELECT
+        prod,
+        SUM(quant) AS y_sum_quant
+    FROM sales
+    GROUP BY prod
+)
+SELECT
+    x.prod,
+    x.month,
+    x.x_sum_quant,
+    y.y_sum_quant
+FROM x
+JOIN y
+  ON x.prod = y.prod
+WHERE x.x_sum_quant > 0.9 * y.y_sum_quant / 10
+  AND (x.x_sum_quant > 40000 OR y.y_sum_quant < 500000);
 """
 S: prod, month, 1_sum_quant, 2_sum_quant
 n: 2

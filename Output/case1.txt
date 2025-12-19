@@ -1,0 +1,6 @@
+prod    month   1_sum_quant     2_sum_quant
+Ham     11      46278   508122
+Butter  11      50012   520646
+Dates   11      47405   507758
+Cherry  11      44469   493936
+Grapes  11      42255   465786
